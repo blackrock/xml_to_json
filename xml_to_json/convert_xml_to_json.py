@@ -13,8 +13,6 @@ import os
 import gzip
 import logging
 
-_logger = logging.getLogger("xml_to_json")
-
 
 def decimal_default(obj):
     """
@@ -251,10 +249,9 @@ def convert_xml_to_json(args):
     """
     :param args: args passed in from command line
     """
-    
+
     _logger = logging.getLogger()
     _logger.setLevel(logging.DEBUG)
-    
     formatter = logging.Formatter("%(levelname)s - %(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 
     # create console handler and set level to info
