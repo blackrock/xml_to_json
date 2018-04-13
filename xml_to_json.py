@@ -17,8 +17,6 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--multi", type=int, default=1, help="number of parsers. Default is 1.")
     parser.add_argument("-l", "--log", help="log file")
     parser.add_argument("-v", "--verbose", default="DEBUG", help="verbose output level. INFO, DEBUG, etc.")
-
-    # added this so I can run this parser on multiple boxes to generate JSON and then use this option to convert JSON to Parquet later on the box with Drill installed
     parser.add_argument("-n", "--no_overwrite", action="store_true", help="do not overwrite output file if it exists already")
     parser.add_argument("xml_files", nargs=argparse.REMAINDER, help="xml files to convert")
 
