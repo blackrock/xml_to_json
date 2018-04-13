@@ -154,7 +154,6 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
 
         with open_file(zip, output_file) as json_file:
 
-            # 2nd pass open xml file and get elements in the list
             _logger.debug("Parsing " + xpath_list[-1] + " from " + xml_file)
 
             if isjsonarray and output_format != "jsonl":
