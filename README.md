@@ -14,7 +14,7 @@ Option to write results to either Linux or HDFS folders
 
 # How to run?
 ```python
-pylauncher.py xml_to_json xml_to_json.py
+python xml_to_json.py
 ```
 
 # Parameters
@@ -56,7 +56,7 @@ optional arguments:
 
 # Convert a small XML file to a JSON file
 ```python
-pylauncher.py xml_to_json xml_to_json.py -x PurchaseOrder.xsd PurchaseOrder.xml
+python xml_to_json.py -x PurchaseOrder.xsd PurchaseOrder.xml
 
 INFO - 2018-03-20 11:10:24 - Parsing XML Files..
 INFO - 2018-03-20 11:10:24 - Processing 1 files
@@ -155,7 +155,7 @@ cp 1.xml 2.xml
 cp 1.xml 3.xml
 cp 1.xml 4.xml
 
-pylauncher.py xml_to_json xml_to_json.py -o jsonl -m 3 -z -p /purchaseOrder/items/item -x PurchaseOrder.xsd *.xml
+python xml_to_json.py -o jsonl -m 3 -z -p /purchaseOrder/items/item -x PurchaseOrder.xsd *.xml
 
 INFO - 2018-03-20 16:33:50 - Parsing XML Files..
 INFO - 2018-03-20 16:33:50 - Processing 5 files
@@ -190,11 +190,11 @@ DEBUG - 2018-03-20 16:33:51 - Completed 4.xml
 JSON output
 ```json
 ls -l *.gz
--rw-r--r-- 1 leed users 191 Mar 20 16:26 1.jsonl.gz
--rw-r--r-- 1 leed users 191 Mar 20 16:26 2.jsonl.gz
--rw-r--r-- 1 leed users 191 Mar 20 16:26 3.jsonl.gz
--rw-r--r-- 1 leed users 191 Mar 20 16:26 4.jsonl.gz
--rw-r--r-- 1 leed users 203 Mar 20 16:26 PurchaseOrder.jsonl.gz
+-rw-r--r-- 1 ---- users 191 Mar 20 16:26 1.jsonl.gz
+-rw-r--r-- 1 ---- users 191 Mar 20 16:26 2.jsonl.gz
+-rw-r--r-- 1 ---- users 191 Mar 20 16:26 3.jsonl.gz
+-rw-r--r-- 1 ---- users 191 Mar 20 16:26 4.jsonl.gz
+-rw-r--r-- 1 ---- users 203 Mar 20 16:26 PurchaseOrder.jsonl.gz
 
 zcat *.jsonl.gz
 
