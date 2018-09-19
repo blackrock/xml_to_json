@@ -1,4 +1,7 @@
 """
+
+(c) 2017 BlackRock. All rights reserved.
+
 Author: David Lee
 """
 import xml.etree.cElementTree as ET
@@ -154,6 +157,7 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
 
         with open_file(zip, output_file) as json_file:
 
+            # 2nd pass open xml file and get elements in the list
             _logger.debug("Parsing " + xpath_list[-1] + " from " + xml_file)
 
             if isjsonarray and output_format != "jsonl":
@@ -312,6 +316,7 @@ def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, targe
         # parse_file(parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath)
 
         if target_path and target_path.startswith("hdfs:") and os.path.isfile(output_file):
+            _logger.debug("Moving " + output_file + " to " + target_path)
             if server:
                 if subprocess.call(["ssh", server, "hadoop fs -put -f " + output_file + " " + target_path]) != 0:
                     _logger.error("invalid target_path specified")
