@@ -1,7 +1,4 @@
 """
-
-(c) 2017 BlackRock. All rights reserved.
-
 Author: David Lee
 """
 import xml.etree.cElementTree as ET
