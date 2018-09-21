@@ -214,3 +214,5 @@ zcat *.jsonl.gz
 {"itempartNum": "926-AA", "productName": "Baby Monitor", "quantity": 1, "USPrice": 39.98, "shipDate": "1999-05-21"}
 ```
 
+# License
+This software is distributed under the terms of the MIT License. See the file 'LICENSE' in the root directory of the present distribution, or http://opensource.org/licenses/MIT.
