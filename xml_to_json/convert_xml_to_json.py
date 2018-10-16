@@ -160,7 +160,7 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
             # Start parsing items out of XML
             for event, elem in context:
                 if event == "start":
-                    currentxpath.append(elem.tag.split('}', 1)[1])
+                    currentxpath.append(elem.tag.split('}', 1)[-1])
                     if currentxpath == xpath_list[:len(currentxpath)]:
                         elem_active = True
                         if len(currentxpath) == 1:
@@ -205,7 +205,7 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
     else:
         event, elem = next(context)
         my_dict = my_schema.to_dict(xml_file, namespaces=my_schema.namespaces, process_namespaces=True)
-        my_json = '{"' + elem.tag.split('}', 1)[1] + '": ' + json.dumps(my_dict, default=decimal_default) + "}"
+        my_json = '{"' + elem.tag.split('}', 1)[-1] + '": ' + json.dumps(my_dict, default=decimal_default) + "}"
         with open_file(zip, output_file) as json_file:
             json_file.write(bytes(my_json, "utf-8"))
 
