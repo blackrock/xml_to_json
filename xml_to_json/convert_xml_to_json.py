@@ -140,6 +140,15 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
 
     if xpath_list:
 
+        root_elem = "<" + "><".join(xpath_list[:-1]) + "></" + "></".join(xpath_list[:-1][::-1]) + ">"
+        if my_schema.namespaces[''] != '':
+            root_elem = root_elem[:len(xpath_list[0]) + 1] + ' xmlns="' + my_schema.namespaces[''] + '"' + root_elem[len(xpath_list[0]) + 1:]
+        root = ET.XML(root_elem)
+
+        parent = root
+        for i in xpath_list[:-2]:
+            parent = parent[0]
+
         first_record = True
         elem_active = False
         currentxpath = []
@@ -161,13 +170,8 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
             for event, elem in context:
                 if event == "start":
                     currentxpath.append(elem.tag.split('}', 1)[-1])
-                    if currentxpath == xpath_list[:len(currentxpath)]:
+                    if currentxpath == xpath_list:
                         elem_active = True
-                        if len(currentxpath) == 1:
-                            root = elem
-                        if len(currentxpath) == len(xpath_list) - 1:
-                            parent = elem
-
                 if event == "end":
                     if currentxpath == xpath_list:
                         elem_active = False
@@ -183,11 +187,6 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
                                 json_file.write(bytes("\n" + my_json, "utf-8"))
                             else:
                                 json_file.write(bytes(",\n" + my_json, "utf-8"))
-
-                        # my_json = json.dumps(my_dict, default=decimal_default)
-                        # _logger.info(my_json)
-                        # _logger.info("\n")
-                        # input("Press Enter to continue...")
 
                     if not elem_active:
                         elem.clear()
