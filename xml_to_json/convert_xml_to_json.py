@@ -1,4 +1,6 @@
 """
+(c) 2018 David Lee
+
 Author: David Lee
 """
 import xml.etree.cElementTree as ET
@@ -39,25 +41,38 @@ class ParqConverter(xmlschema.XMLSchemaConverter):
     """
 
     def __init__(self, namespaces=None, dict_class=None, list_class=None, **kwargs):
+        """
+        :param namespaces: map from namespace prefixes to URI.
+        :param dict_class: dictionary class to use for decoded data. Default is `dict`.
+        :param list_class: list class to use for decoded data. Default is `list`.
+        """
         kwargs.update(attr_prefix='', text_key=None, cdata_prefix=None)
         super(ParqConverter, self).__init__(
             namespaces, dict_class or ordered_dict_class, list_class, **kwargs
         )
 
     def __setattr__(self, name, value):
+        """
+        :param name: attribute name.
+        :param value: attribute value.
+        :raises XMLSchemaValueError: Schema validation error for this converter
+        """
         if name in ('text_key', 'cdata_prefix') and value is not None:
             raise XMLSchemaValueError('Wrong value %r for the attribute %r of a %r.' % (value, name, type(self)))
         super(xmlschema.XMLSchemaConverter, self).__setattr__(name, value)
 
     @property
     def lossless(self):
+        """
+        :return: Returns back lossless property for this converter
+        """
         return False
 
     def element_decode(self, data, xsd_element, level=0):
         """
         :param data: Decoded ElementData from an Element node.
         :param xsd_element: The `XsdElement` associated to decoded the data.
-        :paran level: 0 for root
+        :param level: 0 for root
         :return: A dictionary-based data structure containing the decoded data.
         """
         map_qname = self.map_qname
@@ -143,8 +158,8 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
         root_elem = "<" + "><".join(xpath_list[:-1]) + "></" + "></".join(xpath_list[:-1][::-1]) + ">"
         if my_schema.namespaces[''] != '':
             root_elem = root_elem[:len(xpath_list[0]) + 1] + ' xmlns="' + my_schema.namespaces[''] + '"' + root_elem[len(xpath_list[0]) + 1:]
-        root = ET.XML(root_elem)
 
+        root = ET.XML(root_elem)
         parent = root
         for i in xpath_list[:-2]:
             parent = parent[0]
@@ -163,7 +178,7 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
             # 2nd pass open xml file and get elements in the list
             _logger.debug("Parsing " + xpath_list[-1] + " from " + xml_file)
 
-            if isjsonarray and output_format != "jsonl":
+            if isjsonarray and output_format == "json":
                 json_file.write(bytes("[\n", "utf-8"))
 
             # Start parsing items out of XML
@@ -183,17 +198,17 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath):
                             first_record = False
                             json_file.write(bytes(my_json, "utf-8"))
                         else:
-                            if output_format == "jsonl":
-                                json_file.write(bytes("\n" + my_json, "utf-8"))
-                            else:
+                            if output_format == "json":
                                 json_file.write(bytes(",\n" + my_json, "utf-8"))
+                            else:
+                                json_file.write(bytes("\n" + my_json, "utf-8"))
 
                     if not elem_active:
                         elem.clear()
 
                     del currentxpath[-1]
 
-            if isjsonarray and output_format != "jsonl":
+            if isjsonarray and output_format == "json":
                 json_file.write(bytes("\n]", "utf-8"))
 
         # Remove file if no json is generated
