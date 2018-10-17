@@ -1,4 +1,6 @@
 """
+(c) 2018 David Lee
+
 Author: David Lee
 """
 import argparse
