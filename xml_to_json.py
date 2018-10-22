@@ -16,6 +16,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--target_path", help="target path. hdfs targets require hadoop client installation. Examples: /proj/test, hdfs:///proj/test, hdfs://halfarm/proj/test")
     parser.add_argument("-z", "--zip", action="store_true", help="gzip output file")
     parser.add_argument("-p", "--xpath", help="xpath to parse out.")
+    parser.add_argument("-a", "--attribpath", help="extra element attributes to parse out.")
     parser.add_argument("-m", "--multi", type=int, default=1, help="number of parsers. Default is 1.")
     parser.add_argument("-l", "--log", help="log file")
     parser.add_argument("-v", "--verbose", default="DEBUG", help="verbose output level. INFO, DEBUG, etc.")
@@ -24,5 +25,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    convert_xml_to_json(args.xsd_file, args.output_format, args.server, args.target_path, args.zip, args.xpath, args.multi, args.no_overwrite, args.verbose, args.log, args.xml_files)
-
+    convert_xml_to_json(args.xsd_file, args.output_format, args.server, args.target_path, args.zip, args.xpath, args.attribpath, args.multi, args.no_overwrite, args.verbose, args.log, args.xml_files)
