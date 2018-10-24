@@ -20,8 +20,8 @@ python xml_to_json.py
 # Parameters
 ```python
 usage: xml_to_json.py [-h] -x XSD_FILE [-o OUTPUT_FORMAT] [-s SERVER]
-                      [-t TARGET_PATH] [-z] [-p XPATH] [-m MULTI] [-l LOG]
-                      [-v VERBOSE] [-n]
+                      [-t TARGET_PATH] [-z] [-p XPATH] [-a ATTRIBPATH]
+                      [-e EXCLUDEPATHS] [-m MULTI] [-l LOG] [-v VERBOSE] [-n]
                       ...
 
 XML To JSON Parser
@@ -41,10 +41,15 @@ optional arguments:
   -t TARGET_PATH, --target_path TARGET_PATH
                         target path. hdfs targets require hadoop client
                         installation. Examples: /proj/test, hdfs:///proj/test,
-                        hdfs://hdfs_server/proj/test
+                        hdfs://halfarm/proj/test
   -z, --zip             gzip output file
   -p XPATH, --xpath XPATH
                         xpath to parse out.
+  -a ATTRIBPATH, --attribpath ATTRIBPATH
+                        extra element attributes to parse out.
+  -e EXCLUDEPATHS, --excludepaths EXCLUDEPATHS
+                        elements to exclude. pass in comma separated string.
+                        /path/exclude1,/path/exclude2
   -m MULTI, --multi MULTI
                         number of parsers. Default is 1.
   -l LOG, --log LOG     log file
@@ -190,11 +195,11 @@ DEBUG - 2018-03-20 16:33:51 - Completed 4.xml
 JSON output
 ```json
 ls -l *.gz
--rw-r--r-- 1 ---- users 191 Mar 20 16:26 1.jsonl.gz
--rw-r--r-- 1 ---- users 191 Mar 20 16:26 2.jsonl.gz
--rw-r--r-- 1 ---- users 191 Mar 20 16:26 3.jsonl.gz
--rw-r--r-- 1 ---- users 191 Mar 20 16:26 4.jsonl.gz
--rw-r--r-- 1 ---- users 203 Mar 20 16:26 PurchaseOrder.jsonl.gz
+-rw-r--r-- 1 leed users 191 Mar 20 16:26 1.jsonl.gz
+-rw-r--r-- 1 leed users 191 Mar 20 16:26 2.jsonl.gz
+-rw-r--r-- 1 leed users 191 Mar 20 16:26 3.jsonl.gz
+-rw-r--r-- 1 leed users 191 Mar 20 16:26 4.jsonl.gz
+-rw-r--r-- 1 leed users 203 Mar 20 16:26 PurchaseOrder.jsonl.gz
 
 zcat *.jsonl.gz
 
@@ -214,5 +219,3 @@ zcat *.jsonl.gz
 {"itempartNum": "926-AA", "productName": "Baby Monitor", "quantity": 1, "USPrice": 39.98, "shipDate": "1999-05-21"}
 ```
 
-# License
-This software is distributed under the terms of the MIT License. See the file 'LICENSE' in the root directory of the present distribution, or http://opensource.org/licenses/MIT.

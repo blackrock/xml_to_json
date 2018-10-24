@@ -18,9 +18,10 @@ class MyTest(unittest.TestCase):
         output_format = "json"
         zip = False
         xpath = None
-        attribpath = ""
+        attribpath = None
+        excludepaths = None
 
-        parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attribpath)
+        parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attribpath, excludepaths)
         with open(os.path.join(realpath,"PurchaseOrder.json")) as f:
             test_json = json.loads(f.read())
         with open(output_file) as f:
@@ -44,12 +45,13 @@ class MyTest(unittest.TestCase):
         output_format = "jsonl"
         zip = False
         xpath = "/purchaseOrder/items/item"
-        attribpath = ""
+        attribpath = None
+        excludepaths = None
 
         test_json = list()
         target_json = list()
 
-        parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attribpath)
+        parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attribpath, excludepaths)
         with open(os.path.join(realpath, "PurchaseOrder.jsonl")) as f:
             for line in f:
                 test_json.append(json.loads(line))
