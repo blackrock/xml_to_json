@@ -1,3 +1,1 @@
-elementpath==1.0.12
-defusedxml==0.5.0
 xmlschema==1.0.5

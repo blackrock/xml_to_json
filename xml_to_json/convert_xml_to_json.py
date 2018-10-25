@@ -124,7 +124,7 @@ def open_file(zip, filename):
         return open(filename, "wb")
 
 
-def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attribpath, excludepaths):
+def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths):
     """
     :param xml_file: xml file
     :param output_file: output file
@@ -132,7 +132,7 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attri
     :param output_format: jsonl or json
     :param zip: zip save file
     :param xpath: whether to parse a specific xml path
-    :param attribpath: path to capture attributes when used with xpath
+    :param attribpaths: paths to capture attributes when used with xpath
     :param excludepaths: paths to exclude
     """
 
@@ -147,7 +147,8 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attri
     context = ET.iterparse(xml_file, events=("start", "end"))
 
     xpath_list = None
-    attribpath_list = None
+    attribpaths_list = []
+    attribpaths_dict = {}
     excludepaths_list = []
     excludeparents_list = []
     excludeparent = None
@@ -169,21 +170,23 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attri
 
         root = ET.XML(root_elem)
         parent = root
-        for i in xpath_list[:-2]:
+        for k in xpath_list[:-2]:
             parent = parent[0]
 
-        if attribpath:
-            attribpath_list = attribpath.split("/")
-            del attribpath_list[0]
-
-            root_elem = "<" + "><".join(attribpath_list[:-1]) + "></" + "></".join(attribpath_list[:-1][::-1]) + ">"
-            if my_schema.namespaces[''] != '':
-                root_elem = root_elem[:len(attribpath_list[0]) + 1] + ' xmlns="' + my_schema.namespaces[''] + '"' + root_elem[len(attribpath_list[0]) + 1:]
-
-            attribroot = ET.XML(root_elem)
-            attribparent = attribroot
-            for i in attribpath_list[:-2]:
-                attribparent = attribparent[0]
+        if attribpaths:
+            attribpaths = attribpaths.split(",")
+            attribpaths_list = [v.split("/")[1:] for v in attribpaths]
+            for i in range(len(attribpaths_list)):
+                root_elem = "<" + "><".join(attribpaths_list[i][:-1]) + "></" + "></".join(attribpaths_list[i][:-1][::-1]) + ">"
+                if my_schema.namespaces[''] != '':
+                    root_elem = root_elem[:len(attribpaths_list[i][0]) + 1] + ' xmlns="' + my_schema.namespaces[''] + '"' + root_elem[len(attribpaths_list[i][0]) + 1:]
+                attribroot = ET.XML(root_elem)
+                attribparent = attribroot
+                for k in attribpaths_list[i][:-2]:
+                    attribparent = attribparent[0]
+                attribpaths_dict[i] = {'root': attribroot, 'parent': attribparent, 'path': attribpaths[i], 'inline': False, 'attributes': {}}
+                if xpath_list == attribpaths_list[i][:len(xpath_list)]:
+                    attribpaths_dict[i]['inline'] = True
 
         xsd_elem = my_schema.find(xpath, namespaces=my_schema.namespaces)
         if xsd_elem.occurs[1] is None or xsd_elem.occurs[1] > 1:
@@ -209,12 +212,12 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attri
                 currentxpath.append(elem.tag.split('}', 1)[-1])
                 if currentxpath == xpath_list:
                     elem_active = True
-                if currentxpath == attribpath_list:
+                if currentxpath in attribpaths_list:
+                    i = attribpaths_list.index(currentxpath)
                     new_elem = ET.Element(elem.tag, elem.attrib)
-                    attribparent.append(new_elem)
-                    attrib_dict = my_schema.to_dict(attribroot, namespaces=my_schema.namespaces, process_namespaces=True, path=attribpath)
-                    attribparent.remove(new_elem)
-
+                    attribpaths_dict[i]['parent'].append(new_elem)
+                    attribpaths_dict[i]['attributes'] = my_schema.to_dict(attribpaths_dict[i]['root'], namespaces=my_schema.namespaces, process_namespaces=True, path=attribpaths_dict[i]['path'], validation='skip')
+                    attribpaths_dict[i]['parent'].remove(new_elem)
                 if currentxpath in excludeparents_list:
                     excludeparent = elem
 
@@ -226,9 +229,10 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attri
                     my_dict = my_schema.to_dict(root, namespaces=my_schema.namespaces, process_namespaces=True, path=xpath)
                     parent.remove(elem)
 
-                    if len(attrib_dict) > 0:
-                        for k, v in attrib_dict.items():
-                            my_dict[k] = v
+                    if len(attribpaths_dict) > 0:
+                        for i in range(len(attribpaths_dict)):
+                            for k, v in attribpaths_dict[i]['attributes'].items():
+                                my_dict[k] = v
                     my_json = json.dumps(my_dict, default=decimal_default)
 
                     if first_record:
@@ -242,6 +246,11 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attri
 
                 if not elem_active:
                     elem.clear()
+
+                if currentxpath in attribpaths_list:
+                    i = attribpaths_list.index(currentxpath)
+                    if attribpaths_dict[i]['inline']:
+                        attribpaths_dict[i]['attributes'] = {}
 
                 if currentxpath in excludepaths_list:
                     excludeparent.remove(elem)
@@ -269,7 +278,7 @@ def parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attri
     _logger.debug("Completed " + xml_file)
 
 
-def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, target_path=None, zip=False, xpath=None, attribpath=None, excludepaths=None, multi=1, no_overwrite=False, verbose="DEBUG", log=None, xml_files=None):
+def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, target_path=None, zip=False, xpath=None, attribpaths=None, excludepaths=None, multi=1, no_overwrite=False, verbose="DEBUG", log=None, xml_files=None):
     """
     :param xsd_file: xsd file name
     :param output_format: jsonl or json
@@ -277,7 +286,7 @@ def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, targe
     :param target_path: directory to save file
     :param zip: zip save file
     :param xpath: whether to parse a specific xml path
-    :param attribpath: path to capture attributes when used with xpath
+    :param attribpaths: path to capture attributes when used with xpath
     :param excludepaths: paths to exclude
     :param multi: how many files to convert concurrently
     :param no_overwrite: overwrite target file
@@ -368,7 +377,7 @@ def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, targe
                 _logger.debug("No overwrite. Skipping " + xml_file)
                 continue
 
-        parse_queue_pool.apply_async(parse_file, args=(filename, output_file, xsd_file, output_format, zip, xpath, attribpath, excludepaths), error_callback=_logger.info)
+        parse_queue_pool.apply_async(parse_file, args=(filename, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths), error_callback=_logger.info)
         # parse_file(parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath)
 
         if target_path and target_path.startswith("hdfs:") and os.path.isfile(output_file):
