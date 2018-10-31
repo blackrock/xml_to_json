@@ -97,7 +97,7 @@ class ParqConverter(xmlschema.XMLSchemaConverter):
                         else:
                             result_dict[name] = value
                     else:
-                        if (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()) and len(xsd_element.findall("*")) == 1:
+                        if (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()) and not data.attributes and len(xsd_element.findall("*")) == 1:
                             try:
                                 result_dict.append(value)
                             except AttributeError:
