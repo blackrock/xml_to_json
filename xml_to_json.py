@@ -22,8 +22,8 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--log", help="log file")
     parser.add_argument("-v", "--verbose", default="DEBUG", help="verbose output level. INFO, DEBUG, etc.")
     parser.add_argument("-n", "--no_overwrite", action="store_true", help="do not overwrite output file if it exists already")
-    parser.add_argument("xml_files", nargs=argparse.REMAINDER, help="xml files to convert")
+    parser.add_argument("input_files", nargs=argparse.REMAINDER, help="files to convert")
 
     args = parser.parse_args()
 
-    convert_xml_to_json(args.xsd_file, args.output_format, args.server, args.target_path, args.zip, args.xpath, args.attribpaths, args.excludepaths, args.multi, args.no_overwrite, args.verbose, args.log, args.xml_files)
+    convert_xml_to_json(args.xsd_file, args.output_format, args.server, args.target_path, args.zip, args.xpath, args.attribpaths, args.excludepaths, args.multi, args.no_overwrite, args.verbose, args.log, args.input_files)

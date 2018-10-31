@@ -12,7 +12,7 @@ class MyTest(unittest.TestCase):
 
         realpath = os.path.dirname(os.path.realpath(__file__))
 
-        xml_file = os.path.join(realpath, "PurchaseOrder.xml")
+        input_file = os.path.join(realpath, "PurchaseOrder.xml")
         output_file = os.path.join(tempfile.gettempdir(), "PurchaseOrder.json")
         xsd_file = os.path.join(realpath, "PurchaseOrder.xsd")
         output_format = "json"
@@ -21,7 +21,7 @@ class MyTest(unittest.TestCase):
         attribpaths = None
         excludepaths = None
 
-        parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths)
+        parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths)
         with open(os.path.join(realpath,"PurchaseOrder.json")) as f:
             test_json = json.loads(f.read())
         with open(output_file) as f:
@@ -39,7 +39,7 @@ class MyTest(unittest.TestCase):
 
         realpath = os.path.dirname(os.path.realpath(__file__))
 
-        xml_file = os.path.join(realpath, "PurchaseOrder.xml")
+        input_file = os.path.join(realpath, "PurchaseOrder.xml")
         output_file = os.path.join(tempfile.gettempdir(), "PurchaseOrder.jsonl")
         xsd_file = os.path.join(realpath, "PurchaseOrder.xsd")
         output_format = "jsonl"
@@ -51,7 +51,7 @@ class MyTest(unittest.TestCase):
         test_json = list()
         target_json = list()
 
-        parse_file(xml_file, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths)
+        parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths)
         with open(os.path.join(realpath, "PurchaseOrder.jsonl")) as f:
             for line in f:
                 test_json.append(json.loads(line))
