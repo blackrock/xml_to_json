@@ -168,23 +168,27 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath, xpath_list, 
                 elem_active = False
 
                 parent.append(elem)
-                my_dict = my_schema.to_dict(root, namespaces=my_schema.namespaces, process_namespaces=True, path=xpath)
-                parent.remove(elem)
+                try:
+                    my_dict = my_schema.to_dict(root, namespaces=my_schema.namespaces, process_namespaces=True, path=xpath)
 
-                if len(attribpaths_dict) > 0:
-                    for i in range(len(attribpaths_dict)):
-                        for k, v in attribpaths_dict[i]['attributes'].items():
-                            my_dict[k] = v
-                my_json = json.dumps(my_dict, default=decimal_default)
+                    if len(attribpaths_dict) > 0:
+                        for i in range(len(attribpaths_dict)):
+                            for k, v in attribpaths_dict[i]['attributes'].items():
+                                my_dict[k] = v
+                    my_json = json.dumps(my_dict, default=decimal_default)
 
-                if not processed:
-                    processed = True
-                    json_file.write(bytes(my_json, "utf-8"))
-                else:
-                    if output_format == "json":
-                        json_file.write(bytes(",\n" + my_json, "utf-8"))
+                    if not processed:
+                        processed = True
+                        json_file.write(bytes(my_json, "utf-8"))
                     else:
-                        json_file.write(bytes("\n" + my_json, "utf-8"))
+                        if output_format == "json":
+                            json_file.write(bytes(",\n" + my_json, "utf-8"))
+                        else:
+                            json_file.write(bytes("\n" + my_json, "utf-8"))
+                except Exception as ex:
+                    _logger.debug(ex)
+                    pass
+                parent.remove(elem)
 
             if not elem_active:
                 elem.clear()
@@ -201,7 +205,11 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath, xpath_list, 
 
     if not xpath:
         my_dict = my_schema.to_dict(elem, namespaces=my_schema.namespaces, process_namespaces=True)
-        my_json = '{"' + elem.tag.split('}', 1)[-1] + '": ' + json.dumps(my_dict, default=decimal_default) + "}"
+        try:
+            my_json = '{"' + elem.tag.split('}', 1)[-1] + '": ' + json.dumps(my_dict, default=decimal_default) + "}"
+        except Exception as ex:
+            _logger.debug(ex)
+            pass
         if len(my_json) > 0:
             if not processed:
                 processed = True
