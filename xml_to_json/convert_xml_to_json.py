@@ -169,12 +169,16 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath, xpath_list, 
 
                 parent.append(elem)
                 try:
-                    my_dict = my_schema.to_dict(root, namespaces=my_schema.namespaces, process_namespaces=True, path=xpath)
-
                     if len(attribpaths_dict) > 0:
+                        attrib_dict = dict()
                         for i in range(len(attribpaths_dict)):
                             for k, v in attribpaths_dict[i]['attributes'].items():
-                                my_dict[k] = v
+                                attrib_dict[k] = v
+                        elem_dict = my_schema.to_dict(root, namespaces=my_schema.namespaces, process_namespaces=True, path=xpath)
+                        my_dict = {**attrib_dict, **elem_dict}
+                    else:
+                        my_dict = my_schema.to_dict(root, namespaces=my_schema.namespaces, process_namespaces=True, path=xpath)
+
                     my_json = json.dumps(my_dict, default=decimal_default)
 
                     if not processed:
