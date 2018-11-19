@@ -41,7 +41,7 @@ optional arguments:
   -t TARGET_PATH, --target_path TARGET_PATH
                         target path. hdfs targets require hadoop client
                         installation. Examples: /proj/test, hdfs:///proj/test,
-                        hdfs://halfarm/proj/test
+                        hdfs://hdfsserver/proj/test
   -z, --zip             gzip output file
   -p XPATH, --xpath XPATH
                         xpath to parse out.
