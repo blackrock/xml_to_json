@@ -97,7 +97,7 @@ class ParqConverter(xmlschema.XMLSchemaConverter):
                         else:
                             result_dict[name] = value
                     else:
-                        if (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()) and not data.attributes and len(xsd_element.findall("*")) == 1:
+                        if (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()) and not xsd_child.attributes and len(xsd_element.findall("*")) == 1:
                             try:
                                 result_dict.append(value)
                             except AttributeError:
@@ -169,6 +169,7 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath, xpath_list, 
 
                 parent.append(elem)
                 try:
+
                     if len(attribpaths_dict) > 0:
                         attrib_dict = dict()
                         for i in range(len(attribpaths_dict)):
