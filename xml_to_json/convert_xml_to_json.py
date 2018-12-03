@@ -230,7 +230,7 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath, xpath_list, 
     return processed
 
 
-def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths):
+def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths, target_path, server, delete_xml):
     """
     :param input_file: input file
     :param output_file: output file
@@ -240,6 +240,9 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
     :param xpath: whether to parse a specific xml path
     :param attribpaths: paths to capture attributes when used with xpath
     :param excludepaths: paths to exclude
+    :param target_path: directory to save file
+    :param server: optional server with hadoop client installed if current server does not have hadoop installed
+    :param delete_xml: optional delete xml file after converting
     """
 
     _logger.debug("Generating schema from " + xsd_file)
@@ -329,10 +332,26 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
         _logger.debug("No data found in " + input_file)
         return
 
+    if delete_xml:
+        os.remove(input_file)
+
+    if target_path and target_path.startswith("hdfs:"):
+        _logger.debug("Moving " + output_file + " to " + target_path)
+        if server:
+            if subprocess.call(["ssh", server, "hadoop fs -put -f " + output_file + " " + target_path]) != 0:
+                _logger.error("invalid target_path specified")
+                sys.exit(1)
+        else:
+            if subprocess.call(["hadoop", "fs", "-put", "-f", output_file, target_path]) != 0:
+                _logger.error("invalid target_path specified")
+                sys.exit(1)
+
+        os.remove(output_file)
+
     _logger.debug("Completed " + input_file)
 
 
-def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, target_path=None, zip=False, xpath=None, attribpaths=None, excludepaths=None, multi=1, no_overwrite=False, verbose="DEBUG", log=None, xml_files=None):
+def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, target_path=None, zip=False, xpath=None, attribpaths=None, excludepaths=None, multi=1, no_overwrite=False, verbose="DEBUG", log=None,delete_xml=None, xml_files=None):
     """
     :param xsd_file: xsd file name
     :param output_format: jsonl or json
@@ -346,6 +365,7 @@ def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, targe
     :param no_overwrite: overwrite target file
     :param verbose: stdout log messaging level
     :param log: optional log file
+    :param delete_xml: optional delete xml file after converting
     :param xml_files: list of xml_files
 
     """
@@ -431,20 +451,7 @@ def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, targe
                 _logger.debug("No overwrite. Skipping " + xml_file)
                 continue
 
-        parse_queue_pool.apply_async(parse_file, args=(filename, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths), error_callback=_logger.info)
-
-        if target_path and target_path.startswith("hdfs:") and os.path.isfile(output_file):
-            _logger.debug("Moving " + output_file + " to " + target_path)
-            if server:
-                if subprocess.call(["ssh", server, "hadoop fs -put -f " + output_file + " " + target_path]) != 0:
-                    _logger.error("invalid target_path specified")
-                    sys.exit(1)
-            else:
-                if subprocess.call(["hadoop", "fs", "-put", "-f", output_file, target_path]) != 0:
-                    _logger.error("invalid target_path specified")
-                    sys.exit(1)
-
-            os.remove(output_file)
+        parse_queue_pool.apply_async(parse_file, args=(filename, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths, target_path, server, delete_xml), error_callback=_logger.info)
 
     parse_queue_pool.close()
     parse_queue_pool.join()
