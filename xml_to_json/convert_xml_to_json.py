@@ -76,32 +76,42 @@ class ParqConverter(xmlschema.XMLSchemaConverter):
         :param level: 0 for root
         :return: A dictionary-based data structure containing the decoded data.
         """
-        map_qname = self.map_qname
-
         if data.attributes:
-            self.attr_prefix = map_qname(data.tag)
+            self.attr_prefix = xsd_element.local_name
             result_dict = self.dict([(k, v) for k, v in self.map_attributes(data.attributes)])
         else:
             result_dict = self.dict()
-
         if xsd_element.type.is_simple() or xsd_element.type.has_simple_content():
-            result_dict[map_qname(data.tag)] = data.text if data.text is not None and data.text != "" else None
+            result_dict[xsd_element.local_name] = data.text if data.text is not None and data.text != "" else None
 
         if data.content:
             for name, value, xsd_child in self.map_content(data.content):
                 if value:
+                    if xsd_child.local_name:
+                        name = xsd_child.local_name
+                    else:
+                        name = name[2 + len(xsd_child.namespace):]
+
                     if xsd_child.is_single():
-                        if xsd_child.type.is_simple() or xsd_child.type.has_simple_content():
+                        if hasattr(xsd_child, 'type') and (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()):
                             for k in value:
                                 result_dict[k] = value[k]
                         else:
                             result_dict[name] = value
                     else:
-                        if (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()) and not xsd_child.attributes and len(xsd_element.findall("*")) == 1:
-                            try:
-                                result_dict.append(value)
-                            except AttributeError:
-                                result_dict = self.list([value])
+                        if (xsd_child.type.is_simple() or xsd_child.type.has_simple_content()) and not xsd_child.attributes:
+                            if len(xsd_element.findall("*")) == 1:
+                                try:
+                                    result_dict.append(list(value.values())[0])
+                                except AttributeError:
+                                    result_dict = self.list(value.values())
+                            else:
+                                try:
+                                    result_dict[name].append(list(value.values())[0])
+                                except KeyError:
+                                    result_dict[name] = self.list(value.values())
+                                except AttributeError:
+                                    result_dict[name] = self.list(value.values())
                         else:
                             try:
                                 result_dict[name].append(value)
@@ -109,7 +119,6 @@ class ParqConverter(xmlschema.XMLSchemaConverter):
                                 result_dict[name] = self.list([value])
                             except AttributeError:
                                 result_dict[name] = self.list([value])
-
         return result_dict
 
 
@@ -298,7 +307,7 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
                     attribpaths_dict[i]['inline'] = True
 
         xsd_elem = my_schema.find(xpath, namespaces=my_schema.namespaces)
-        if xsd_elem.occurs[1] is None or xsd_elem.occurs[1] > 1:
+        if hasattr(xsd_elem, 'occurs') and (xsd_elem.occurs[1] is None or xsd_elem.occurs[1] > 1):
             isjsonarray = True
         elem_active = False
     else:
