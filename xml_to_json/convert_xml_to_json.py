@@ -17,6 +17,7 @@ import logging
 import shutil
 import sys
 from zipfile import ZipFile
+import copy
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.compat import ordered_dict_class
@@ -150,7 +151,7 @@ def open_file(zip, filename):
         return open(filename, "wb")
 
 
-def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, attribpaths_dict, excludepaths_set, excludeparents_set, root, parent, elem_active, processed, isjsonarray):
+def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip):
     """
     :param xml_file: xml file
     :param json_file: json file
@@ -160,19 +161,36 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, attribp
     :param attribpaths_dict: captured parent root elements for attributes
     :param excludepaths_set: paths to exclude
     :param excludeparents_set: parent paths of excludes
-    :param root: root path
-    :param parent: parent path
     :param elem_active: keep or clear elem
     :param processed: data found and processed previously
-    :param isjaonarray: if element is an array
+    :param from_zip: if data is from a file in a zip archive
     :return: data found and processed
     """
 
     excludeparent = None
     currentxpath = []
+    is_array = False
 
+    # Build Root
+    if xpath_list:
+        parent_xpath_list = xpath_list[:-1]
+        context = ET.iterparse(xml_file, events=("start", "end"))
+        event, root = next(context)
+        currentxpath.append(root.tag.split('}', 1)[-1])
+        for event, elem in context:
+            if event == "start":
+                currentxpath.append(elem.tag.split('}', 1)[-1])
+                if currentxpath == parent_xpath_list:
+                    elem.clear()
+                    parent = elem
+                    break
+            if event == "end":
+                elem.clear()
+                del currentxpath[-1]
+
+    currentxpath = []
     context = ET.iterparse(xml_file, events=("start", "end"))
-    # Start parsing items out of XML
+    #Parse XML
     for event, elem in context:
         if event == "start":
             currentxpath.append(elem.tag.split('}', 1)[-1])
@@ -183,19 +201,18 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, attribp
 
             if currentxpath_key in attribpaths_dict:
                 for k, v in elem.attrib.items():
-                    attribpaths_dict[currentxpath_key][currentxpath[:-1] + k] = v
+                    attribpaths_dict[currentxpath_key][currentxpath[-1] + k] = v
 
             if currentxpath_key in excludeparents_set:
                 excludeparent = elem
 
         if event == "end":
             if currentxpath == xpath_list:
-                elem_active = False
                 parent.append(elem)
-
                 try:
                     my_dict = nested_get(my_schema.to_dict(root, process_namespaces=False, validation='skip'), xpath_list)
-                    if isjsonarray:
+                    if isinstance(my_dict, list):
+                        is_array = True
                         my_dict = my_dict[0]
 
                     if len(attribpaths_dict) > 0:
@@ -209,6 +226,8 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, attribp
 
                     if not processed:
                         processed = True
+                        if is_array and output_format == "json":
+                            json_file.write(bytes("[\n", "utf-8"))
                         json_file.write(bytes(my_json, "utf-8"))
                     else:
                         if output_format == "json":
@@ -218,9 +237,7 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, attribp
                 except Exception as ex:
                     _logger.debug(ex)
                     pass
-
                 parent.remove(elem)
-
             if not elem_active:
                 elem.clear()
 
@@ -231,7 +248,10 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, attribp
 
             del currentxpath[-1]
 
-    if not xpath_list:
+    if xpath_list:
+        if is_array and output_format == "json":
+            json_file.write(bytes("\n]", "utf-8"))
+    else:
         my_dict = my_schema.to_dict(elem, process_namespaces=False)
         try:
             my_json = json.dumps(my_dict, default=decimal_default)
@@ -281,11 +301,6 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
     excludepaths_set = set()
     excludeparents_set = set()
 
-    root = None
-    parent = None
-
-    isjsonarray = False
-
     if excludepaths:
         excludepaths = excludepaths.split(",")
         excludepaths_list = [v.split("/")[1:] for v in excludepaths]
@@ -295,16 +310,6 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
     if xpath:
         xpath_list = xpath.split("/")[1:]
 
-        root_elem = "<" + "><".join(xpath_list[:-1]) + "></" + "></".join(xpath_list[:-1][::-1]) + ">"
-
-        if my_schema.namespaces[''] != '':
-            root_elem = root_elem[:len(xpath_list[0]) + 1] + ' xmlns="' + my_schema.namespaces[''] + '"' + root_elem[len(xpath_list[0]) + 1:]
-
-        root = ET.XML(root_elem)
-        parent = root
-        for k in xpath_list[:-2]:
-            parent = parent[0]
-
         if attribpaths:
             attribpaths_list = [v.split("/")[1:] for v in attribpaths.split(",")]
             attribpaths_dict = {tuple(v): {} for v in attribpaths_list}
@@ -313,8 +318,6 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
             del(attribpaths_dict[tuple(xpath_list)])
 
         xsd_elem = my_schema.find(xpath, namespaces=my_schema.namespaces)
-        if hasattr(xsd_elem, 'occurs') and (xsd_elem.occurs[1] is None or xsd_elem.occurs[1] > 1):
-            isjsonarray = True
         elem_active = False
     else:
         elem_active = True
@@ -323,7 +326,7 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
 
     with open_file(zip, output_file) as json_file:
 
-        if (isjsonarray or input_file.endswith(".zip")) and output_format == "json":
+        if input_file.endswith(".zip") and output_format == "json":
             json_file.write(bytes("[\n", "utf-8"))
 
         if input_file.endswith(".zip"):
@@ -331,11 +334,11 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
             zip_file_list = zip_file.infolist()
             for i in range(len(zip_file_list)):
                 xml_file = zip_file.open(zip_file_list[i].filename)
-                processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, attribpaths_dict, excludepaths_set, excludeparents_set, root, parent, elem_active, processed, isjsonarray)
+                processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=True)
         else:
-            processed = parse_xml(input_file, json_file, my_schema, output_format, xpath_list, attribpaths_dict, excludepaths_set, excludeparents_set, root, parent, elem_active, processed, isjsonarray)
+            processed = parse_xml(input_file, json_file, my_schema, output_format, xpath_list, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=False)
 
-        if (isjsonarray or input_file.endswith(".zip")) and output_format == "json":
+        if  input_file.endswith(".zip") and output_format == "json":
             json_file.write(bytes("\n]", "utf-8"))
 
     # Remove file if no json is generated
