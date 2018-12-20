@@ -220,3 +220,27 @@ zcat *.jsonl.gz
 {"itempartNum": "926-AA", "productName": "Baby Monitor", "quantity": 1, "USPrice": 39.98, "shipDate": "1999-05-21"}
 ```
 
+# Add additional attributes from other elements
+Only attributes from elements found before the xpath can be include
+```python
+python xml_to_json.py -p /purchaseOrder/items/item -a /purchaseOrder,/purchaseOrder/shipTo -x PurchaseOrder.xsd PurchaseOrder.xml
+```
+JSON output
+```json
+cat PurchaseOrder.jsonl
+
+{"purchaseOrderorderDate": "1999-10-20", "shipTocountry": "US", "itempartNum": "872-AA", "productName": "Lawnmower", "quantity": 1, "USPrice": 148.95, "comment": "Confirm this is electric"}
+{"purchaseOrderorderDate": "1999-10-20", "shipTocountry": "US", "itempartNum": "926-AA", "productName": "Baby Monitor", "quantity": 1, "USPrice": 39.98, "shipDate": "1999-05-21"}
+```
+
+# Exclude child xpaths from xpath
+This removes xpaths from your result
+```python
+python xml_to_json.py -e /purchaseOrder/comment,/purchaseOrder/items -x PurchaseOrder.xsd PurchaseOrder.xml
+```
+JSON output
+```json
+cat PurchaseOrder.jsonl
+
+{"purchaseOrder": {"purchaseOrderorderDate": "1999-10-20", "shipTo": {"shipTocountry": "US", "name": "Alice Smith", "street": "123 Maple Street", "city": "Mill Valley", "state": "CA", "zip": 90952.0}, "billTo": {"billTocountry": "US", "name": "Robert Smith", "street": "8 Oak Avenue", "city": "Old Town", "state": "PA", "zip": 95819.0}}}
+```

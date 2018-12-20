@@ -259,7 +259,7 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, p
         if is_array and output_format == "json"  and not from_zip:
             json_file.write(bytes("\n]", "utf-8"))
     else:
-        my_dict = my_schema.to_dict(elem, process_namespaces=False)
+        my_dict = my_schema.to_dict(elem, process_namespaces=False, validation='skip')
         try:
             my_json = json.dumps(my_dict, default=decimal_default)
         except Exception as ex:
