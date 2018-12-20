@@ -193,6 +193,7 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, p
     """
 
     is_array = False
+    excludeparent = None
     currentxpath = []
 
     context = ET.iterparse(xml_file, events=("start", "end"))
@@ -309,8 +310,8 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
     if excludepaths:
         excludepaths = excludepaths.split(",")
         excludepaths_list = [v.split("/")[1:] for v in excludepaths]
-        excludepaths_set = set(excludepaths_list)
-        excludeparents_set = set([v[:-1] for v in excludepaths_list])
+        excludepaths_set = {tuple(v) for v in excludepaths_list}
+        excludeparents_set = {tuple(v[:-1]) for v in excludepaths_list}
 
     if xpath:
         xpath_list = xpath.split("/")[1:]
