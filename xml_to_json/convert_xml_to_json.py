@@ -35,10 +35,11 @@ def decimal_default(obj):
         return float(obj)
     raise TypeError
 
+
 def nested_get(nested_dict, keys):
     """
-    :nested_dict: dictionary
-    :keys: list of keys
+    :param nested_dict: dictionary
+    :param keys: list of keys
     :return: return back object
     """
     for key in keys:
@@ -137,7 +138,6 @@ class ParqConverter(xmlschema.XMLSchemaConverter):
             return result_dict
 
 
-
 def open_file(zip, filename):
     """
     :param zip: whether to open a new file using gzip
@@ -149,8 +149,13 @@ def open_file(zip, filename):
     else:
         return open(filename, "wb")
 
-def parse_root(xml_file, parent_xpath_list):
 
+def parse_root(xml_file, parent_xpath_list):
+    """
+    :param xml_file: xml file
+    :param parent_xpath_list: xpath of parent
+    :return: root and parent for xml snippet
+    """
     parent = None
     currentxpath = []
 
@@ -171,8 +176,11 @@ def parse_root(xml_file, parent_xpath_list):
             if event == "end":
                 elem.clear()
                 del currentxpath[-1]
+    if parent is None:
+        root = None
     del context
     return (root, parent)
+
 
 def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip):
     """
@@ -181,7 +189,7 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, p
     :param my_schema: xmlschema object
     :param output_format: jsonl or json
     :param xpath_list: xpath in array format
-    :param root: xml root 
+    :param root: xml root
     :param parent: xml_parent
     :param attribpaths_dict: captured parent root elements for attributes
     :param excludepaths_set: paths to exclude
@@ -207,8 +215,17 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, p
             currentxpath_key = tuple(currentxpath)
 
             if currentxpath_key in attribpaths_dict:
-                for k, v in elem.attrib.items():
-                    attribpaths_dict[currentxpath_key][currentxpath[-1] + k] = v
+                new_elem = ET.Element(elem.tag)
+                new_elem.attrib = elem.attrib
+
+                if attribpaths_dict[currentxpath_key]['root'] is None:
+                    attribpaths_dict[currentxpath_key]['attributes'] = nested_get(my_schema.to_dict(new_elem, process_namespaces=False, validation='skip'), currentxpath)
+                else:
+                    attribpaths_dict[currentxpath_key]['parent'].append(new_elem)
+                    attribpaths_dict[currentxpath_key]['attributes'] = nested_get(my_schema.to_dict(attribpaths_dict[currentxpath_key]['root'], process_namespaces=False, validation='skip'), currentxpath)
+                    attribpaths_dict[currentxpath_key]['parent'].remove(new_elem)
+                if isinstance(attribpaths_dict[currentxpath_key]['attributes'], list):
+                    attribpaths_dict[currentxpath_key]['attributes'] = attribpaths_dict[currentxpath_key]['attributes'][0]
 
             if currentxpath_key in excludeparents_set:
                 excludeparent = elem
@@ -221,12 +238,11 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, p
                     if isinstance(my_dict, list):
                         is_array = True
                         my_dict = my_dict[0]
-
                     if len(attribpaths_dict) > 0:
                         attrib_dict = dict()
                         for dict_value in attribpaths_dict.values():
-                            if dict_value:
-                                attrib_dict.update(dict_value)
+                            if dict_value['attributes']:
+                                attrib_dict.update(dict_value['attributes'])
                         my_dict = {**attrib_dict, **my_dict}
 
                     my_json = json.dumps(my_dict, default=decimal_default)
@@ -256,7 +272,7 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, p
             del currentxpath[-1]
 
     if xpath_list:
-        if is_array and output_format == "json"  and not from_zip:
+        if is_array and output_format == "json" and not from_zip:
             json_file.write(bytes("\n]", "utf-8"))
     else:
         my_dict = my_schema.to_dict(elem, process_namespaces=False, validation='skip')
@@ -318,7 +334,7 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
 
         if attribpaths:
             attribpaths_list = [v.split("/")[1:] for v in attribpaths.split(",")]
-            attribpaths_dict = {tuple(v): {} for v in attribpaths_list}
+            attribpaths_dict = {tuple(v): {"root": None, "parent": None, "attributes": {}} for v in attribpaths_list}
 
         if tuple(xpath_list) in attribpaths_dict:
             del(attribpaths_dict[tuple(xpath_list)])
@@ -343,10 +359,20 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
             zip_file_list = zip_file.infolist()
             for i in range(len(zip_file_list)):
                 if xpath_list:
-                    parent_xpath_list = xpath_list[:-1]
-                    with zip_file.open(zip_file_list[i].filename) as xml_file:
-                        root, parent = parse_root(xml_file, parent_xpath_list)
-                    if parent is not None:
+                    if root is None:
+                        parent_xpath_list = xpath_list[:-1]
+                        with zip_file.open(zip_file_list[i].filename) as xml_file:
+                            root, parent = parse_root(xml_file, parent_xpath_list)
+
+                    if root is not None:
+                        if attribpaths:
+                            for k, v in attribpaths_dict.items():
+                                attribpaths_dict[k]['attributes'] = {}
+                                if v['root'] is None:
+                                    parent_xpath_list = list(k)[:-1]
+                                    with zip_file.open(zip_file_list[i].filename) as xml_file:
+                                        attribpaths_dict[k]['root'], attribpaths_dict[k]['parent'] = parse_root(xml_file, parent_xpath_list)
+
                         with zip_file.open(zip_file_list[i].filename) as xml_file:
                             processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=True)
                 else:
@@ -354,9 +380,16 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
                         processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=True)
         else:
             if xpath_list:
-                parent_xpath_list = xpath_list[:-1]
-                root, parent = parse_root(input_file, parent_xpath_list)
-                if parent is not None:
+                if root is None:
+                    parent_xpath_list = xpath_list[:-1]
+                    root, parent = parse_root(input_file, parent_xpath_list)
+
+                if root is not None:
+                    if attribpaths:
+                        for k, v in attribpaths_dict.items():
+                            parent_xpath_list = list(k)[:-1]
+                            attribpaths_dict[k]['root'], attribpaths_dict[k]['parent'] = parse_root(input_file, parent_xpath_list)
+
                     processed = parse_xml(input_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=False)
             else:
                 processed = parse_xml(input_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=False)
@@ -389,7 +422,7 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
     _logger.debug("Completed " + input_file)
 
 
-def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, target_path=None, zip=False, xpath=None, attribpaths=None, excludepaths=None, multi=1, no_overwrite=False, verbose="DEBUG", log=None,delete_xml=None, xml_files=None):
+def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, target_path=None, zip=False, xpath=None, attribpaths=None, excludepaths=None, multi=1, no_overwrite=False, verbose="DEBUG", log=None, delete_xml=None, xml_files=None):
     """
     :param xsd_file: xsd file name
     :param output_format: jsonl or json

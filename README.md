@@ -233,7 +233,7 @@ cat PurchaseOrder.jsonl
 {"purchaseOrderorderDate": "1999-10-20", "shipTocountry": "US", "itempartNum": "926-AA", "productName": "Baby Monitor", "quantity": 1, "USPrice": 39.98, "shipDate": "1999-05-21"}
 ```
 
-# Exclude child xpaths from xpath
+# Exclude xpath elements
 This removes xpaths from your result
 ```python
 python xml_to_json.py -e /purchaseOrder/comment,/purchaseOrder/items -x PurchaseOrder.xsd PurchaseOrder.xml
