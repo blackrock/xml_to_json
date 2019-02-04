@@ -17,6 +17,7 @@ import logging
 import shutil
 import sys
 from zipfile import ZipFile
+# import time
 
 from xmlschema.exceptions import XMLSchemaValueError
 from xmlschema.compat import ordered_dict_class
@@ -25,15 +26,19 @@ _logger = logging.getLogger(__name__)
 _logger.setLevel(logging.DEBUG)
 
 
-def decimal_default(obj):
+def json_decoder(obj):
     """
     :param obj: python data
-    :return: a float
+    :return: converted type
     :raises:
     """
     if isinstance(obj, decimal.Decimal):
         return float(obj)
-    raise TypeError
+    if isinstance(obj, datetime):
+        return obj.strftime('%Y-%m-%d %H:%M:%S.%f')
+    if isinstance(obj, set):
+        return list(obj)
+    raise TypeError(repr(obj) + " is not JSON serializable")
 
 
 def nested_get(nested_dict, keys):
@@ -48,6 +53,7 @@ def nested_get(nested_dict, keys):
         else:
             nested_dict = nested_dict[key]
     return nested_dict
+
 
 class ParqConverter(xmlschema.XMLSchemaConverter):
     """
@@ -245,18 +251,18 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, p
                                 attrib_dict.update(dict_value['attributes'])
                         my_dict = {**attrib_dict, **my_dict}
 
-                    my_json = json.dumps(my_dict, default=decimal_default)
+                    my_json = json.dumps(my_dict, default=json_decoder)
 
                     if not processed:
                         processed = True
                         if is_array and output_format == "json" and not from_zip:
-                            json_file.write(bytes("[\n", "utf-8"))
+                            json_file.write(bytes("[" + os.linesep, "utf-8"))
                         json_file.write(bytes(my_json, "utf-8"))
                     else:
                         if output_format == "json":
-                            json_file.write(bytes(",\n" + my_json, "utf-8"))
+                            json_file.write(bytes("," + os.linesep + my_json, "utf-8"))
                         else:
-                            json_file.write(bytes("\n" + my_json, "utf-8"))
+                            json_file.write(bytes(os.linesep + my_json, "utf-8"))
                 except Exception as ex:
                     _logger.debug(ex)
                     pass
@@ -273,11 +279,11 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, p
 
     if xpath_list:
         if is_array and output_format == "json" and not from_zip:
-            json_file.write(bytes("\n]", "utf-8"))
+            json_file.write(bytes(os.linesep + "]", "utf-8"))
     else:
         my_dict = my_schema.to_dict(elem, process_namespaces=False, validation='skip')
         try:
-            my_json = json.dumps(my_dict, default=decimal_default)
+            my_json = json.dumps(my_dict, default=json_decoder)
         except Exception as ex:
             _logger.debug(ex)
             pass
@@ -287,9 +293,9 @@ def parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, p
                 json_file.write(bytes(my_json, "utf-8"))
             else:
                 if output_format == "json":
-                    json_file.write(bytes(",\n" + my_json, "utf-8"))
+                    json_file.write(bytes("," + os.linesep + my_json, "utf-8"))
                 else:
-                    json_file.write(bytes("\n" + my_json, "utf-8"))
+                    json_file.write(bytes(os.linesep + my_json, "utf-8"))
 
     del context
     return processed
@@ -352,7 +358,7 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
         parent = None
 
         if input_file.endswith(".zip") and output_format == "json":
-            json_file.write(bytes("[\n", "utf-8"))
+            json_file.write(bytes("[" + os.linesep, "utf-8"))
 
         if input_file.endswith(".zip"):
             zip_file = ZipFile(input_file, 'r')
@@ -362,8 +368,12 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
                     if root is None:
                         parent_xpath_list = xpath_list[:-1]
                         with zip_file.open(zip_file_list[i].filename) as xml_file:
+                            # start = time.time()
                             root, parent = parse_root(xml_file, parent_xpath_list)
-
+                            # end = time.time()
+                            # print("root")
+                            # print(zip_file_list[i].filename)
+                            # print(end - start)
                     if root is not None:
                         if attribpaths:
                             for k, v in attribpaths_dict.items():
@@ -371,13 +381,28 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
                                 if v['root'] is None:
                                     parent_xpath_list = list(k)[:-1]
                                     with zip_file.open(zip_file_list[i].filename) as xml_file:
+                                        # start = time.time()
                                         attribpaths_dict[k]['root'], attribpaths_dict[k]['parent'] = parse_root(xml_file, parent_xpath_list)
+                                        # end = time.time()
+                                        # print("root")
+                                        # print(zip_file_list[i].filename)
+                                        # print(end - start)
 
                         with zip_file.open(zip_file_list[i].filename) as xml_file:
+                            # start = time.time()
                             processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=True)
+                            # end = time.time()
+                            # print("parse")
+                            # print(zip_file_list[i].filename)
+                            # print(end - start)
                 else:
                     with zip_file.open(zip_file_list[i].filename) as xml_file:
+                        # start = time.time()
                         processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=True)
+                        # end = time.time()
+                        # print("parse")
+                        # print(zip_file_list[i].filename)
+                        # print(end - start)
         else:
             if xpath_list:
                 if root is None:
@@ -395,7 +420,7 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
                 processed = parse_xml(input_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=False)
 
         if input_file.endswith(".zip") and output_format == "json":
-            json_file.write(bytes("\n]", "utf-8"))
+            json_file.write(bytes(os.linesep + "]", "utf-8"))
 
     # Remove file if no json is generated
     if not processed:
