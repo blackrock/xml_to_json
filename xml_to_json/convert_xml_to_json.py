@@ -1,5 +1,5 @@
 """
-(c) 2018 David Lee
+(c) 2019 David Lee
 
 Author: David Lee
 """
@@ -13,6 +13,7 @@ from multiprocessing import Pool
 import subprocess
 import os
 import gzip
+import tarfile
 import logging
 import shutil
 import sys
@@ -357,23 +358,44 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
         root = None
         parent = None
 
-        if input_file.endswith(".zip") and output_format == "json":
+        if input_file.endswith((".zip", ".tar.gz")) and output_format == "json":
             json_file.write(bytes("[" + os.linesep, "utf-8"))
 
-        if input_file.endswith(".zip"):
+        if input_file.endswith(".tar.gz"):
+            zip_file = tarfile.open(input_file, 'r')
+            zip_file_list = zip_file.getmembers()
+
+            for member in zip_file_list:
+                if xpath_list:
+                    if root is None:
+                        parent_xpath_list = xpath_list[:-1]
+                        with zip_file.extractfile(member) as xml_file:
+                            root, parent = parse_root(xml_file, parent_xpath_list)
+                    if root is not None:
+                        if attribpaths:
+                            for k, v in attribpaths_dict.items():
+                                attribpaths_dict[k]['attributes'] = {}
+                                if v['root'] is None:
+                                    parent_xpath_list = list(k)[:-1]
+                                    with zip_file.extractfile(member) as xml_file:
+                                        attribpaths_dict[k]['root'], attribpaths_dict[k]['parent'] = parse_root(xml_file, parent_xpath_list)
+
+                        with zip_file.extractfile(member) as xml_file:
+                            processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=True)
+                else:
+                    with zip_file.extractfile(member) as xml_file:
+                        processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=True)
+
+        elif input_file.endswith(".zip"):
             zip_file = ZipFile(input_file, 'r')
             zip_file_list = zip_file.infolist()
+
             for i in range(len(zip_file_list)):
                 if xpath_list:
                     if root is None:
                         parent_xpath_list = xpath_list[:-1]
                         with zip_file.open(zip_file_list[i].filename) as xml_file:
-                            # start = time.time()
                             root, parent = parse_root(xml_file, parent_xpath_list)
-                            # end = time.time()
-                            # print("root")
-                            # print(zip_file_list[i].filename)
-                            # print(end - start)
                     if root is not None:
                         if attribpaths:
                             for k, v in attribpaths_dict.items():
@@ -381,28 +403,34 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
                                 if v['root'] is None:
                                     parent_xpath_list = list(k)[:-1]
                                     with zip_file.open(zip_file_list[i].filename) as xml_file:
-                                        # start = time.time()
                                         attribpaths_dict[k]['root'], attribpaths_dict[k]['parent'] = parse_root(xml_file, parent_xpath_list)
-                                        # end = time.time()
-                                        # print("root")
-                                        # print(zip_file_list[i].filename)
-                                        # print(end - start)
 
                         with zip_file.open(zip_file_list[i].filename) as xml_file:
-                            # start = time.time()
                             processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=True)
-                            # end = time.time()
-                            # print("parse")
-                            # print(zip_file_list[i].filename)
-                            # print(end - start)
                 else:
                     with zip_file.open(zip_file_list[i].filename) as xml_file:
-                        # start = time.time()
                         processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=True)
-                        # end = time.time()
-                        # print("parse")
-                        # print(zip_file_list[i].filename)
-                        # print(end - start)
+        
+        elif input_file.endswith(".gz"):
+            if xpath_list:
+                if root is None:
+                    parent_xpath_list = xpath_list[:-1]
+                    with gzip.open(input_file) as xml_file:
+                        root, parent = parse_root(xml_file, parent_xpath_list)
+
+                if root is not None:
+                    if attribpaths:
+                        for k, v in attribpaths_dict.items():
+                            parent_xpath_list = list(k)[:-1]
+                            with gzip.open(input_file) as xml_file:
+                                attribpaths_dict[k]['root'], attribpaths_dict[k]['parent'] = parse_root(xml_file, parent_xpath_list)
+                    
+                    with gzip.open(input_file) as xml_file:
+                        processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=False)
+            else:
+                with gzip.open(input_file) as xml_file:
+                    processed = parse_xml(xml_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=False)
+
         else:
             if xpath_list:
                 if root is None:
@@ -419,7 +447,7 @@ def parse_file(input_file, output_file, xsd_file, output_format, zip, xpath, att
             else:
                 processed = parse_xml(input_file, json_file, my_schema, output_format, xpath_list, root, parent, attribpaths_dict, excludepaths_set, excludeparents_set, elem_active, processed, from_zip=False)
 
-        if input_file.endswith(".zip") and output_format == "json":
+        if input_file.endswith((".zip", ".tar.gz")) and output_format == "json":
             json_file.write(bytes(os.linesep + "]", "utf-8"))
 
     # Remove file if no json is generated
@@ -504,11 +532,12 @@ def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, targe
     file_list = list(set([f for _files in [glob.glob(xml_files[x]) for x in range(0, len(xml_files))] for f in _files]))
     file_count = len(file_list)
 
-    parse_queue_pool = Pool(processes=multi)
+    if multi > 1:
+        parse_queue_pool = Pool(processes=multi)
 
     _logger.info("Processing " + str(file_count) + " files")
 
-    if len(file_list) <= 1000:
+    if 1 < len(file_list) <= 1000:
         file_list.sort(key=os.path.getsize, reverse=True)
         _logger.info("Parsing files in the following order:")
         _logger.info(file_list)
@@ -522,6 +551,16 @@ def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, targe
                 output_file = xml_file[:-4] + ".jsonl"
             else:
                 output_file = xml_file[:-4] + ".json"
+        elif xml_file.endswith(".tar.gz"):
+            if output_format == "jsonl":
+                output_file = xml_file[:-7] + ".jsonl"
+            else:
+                output_file = xml_file[:-7] + ".json"
+        elif xml_file.endswith(".gz"):
+            if output_format == "jsonl":
+                output_file = xml_file[:-3] + ".jsonl"
+            else:
+                output_file = xml_file[:-3] + ".json"
         else:
             if output_format == "jsonl":
                 output_file = xml_file + ".jsonl"
@@ -547,7 +586,11 @@ def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, targe
                 _logger.debug("No overwrite. Skipping " + xml_file)
                 continue
 
-        parse_queue_pool.apply_async(parse_file, args=(filename, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths, target_path, server, delete_xml), error_callback=_logger.info)
+        if multi > 1:
+            parse_queue_pool.apply_async(parse_file, args=(filename, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths, target_path, server, delete_xml), error_callback=_logger.info)
+        else:
+            parse_file(filename, output_file, xsd_file, output_format, zip, xpath, attribpaths, excludepaths, target_path, server, delete_xml)
 
-    parse_queue_pool.close()
-    parse_queue_pool.join()
+    if multi > 1:
+        parse_queue_pool.close()
+        parse_queue_pool.join()
