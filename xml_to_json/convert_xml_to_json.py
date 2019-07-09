@@ -546,26 +546,24 @@ def convert_xml_to_json(xsd_file=None, output_format="jsonl", server=None, targe
 
         path, xml_file = os.path.split(os.path.realpath(filename))
 
-        if xml_file.endswith(".xml") or xml_file.endswith(".zip"):
-            if output_format == "jsonl":
-                output_file = xml_file[:-4] + ".jsonl"
-            else:
-                output_file = xml_file[:-4] + ".json"
-        elif xml_file.endswith(".tar.gz"):
-            if output_format == "jsonl":
-                output_file = xml_file[:-7] + ".jsonl"
-            else:
-                output_file = xml_file[:-7] + ".json"
-        elif xml_file.endswith(".gz"):
-            if output_format == "jsonl":
-                output_file = xml_file[:-3] + ".jsonl"
-            else:
-                output_file = xml_file[:-3] + ".json"
+        output_file = xml_file
+
+        if output_file.endswith(".gz"):
+            output_file = output_file[:-3]
+
+        if output_file.endswith(".tar"):
+            output_file = output_file[:-4]
+
+        if output_file.endswith(".zip"):
+            output_file = output_file[:-4]
+
+        if output_file.endswith(".xml"):
+            output_file = output_file[:-4]
+
+        if output_format == "jsonl":
+            output_file = output_file + ".jsonl"
         else:
-            if output_format == "jsonl":
-                output_file = xml_file + ".jsonl"
-            else:
-                output_file = xml_file + ".json"
+            output_file = output_file + ".json"
 
         if zip:
             output_file = output_file + ".gz"
